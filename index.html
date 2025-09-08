@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaongDev V2</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .bg-custom-blue { background-color: #0b1535; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden">
+        
+        <header class="bg-custom-blue p-6 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <img src="https://files.catbox.moe/ax0qfe.jpg" alt="PaongDev Logo" class="h-10 w-10 rounded-full">
+                <h1 class="text-3xl font-bold text-white">PaongDev V2</h1>
+            </div>
+            <button id="logout-btn" class="hidden text-white hover:text-red-400 focus:outline-none">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </header>
+        
+        <!-- Authentication Section -->
+        <div id="auth-container" class="p-8">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Login ke Dashboard</h2>
+            <div class="space-y-4">
+                <input type="email" id="email" placeholder="Email" class="w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-custom-blue">
+                <input type="password" id="password" placeholder="Password" class="w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-custom-blue">
+            </div>
+            <button id="login-btn" class="w-full mt-6 py-3 px-6 text-white rounded-lg bg-custom-blue hover:bg-opacity-90 transition duration-300 focus:outline-none">Login</button>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard-container" class="hidden p-8">
+            <!-- Hamburger Menu Button -->
+            <button id="menu-btn" class="absolute top-4 left-4 text-gray-800 focus:outline-none">
+                <i class="fas fa-bars fa-2x"></i>
+            </button>
+
+            <!-- Sidebar Menu -->
+            <div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-custom-blue text-white transform -translate-x-full transition-transform duration-300 z-50 p-6">
+                <!-- Close Button -->
+                <button id="close-menu-btn" class="absolute top-4 right-4 text-white hover:text-red-400 focus:outline-none">
+                    <i class="fas fa-times fa-2x"></i>
+                </button>
+                <h3 class="text-xl font-bold mb-6">Menu</h3>
+                <ul class="space-y-4">
+                    <li><a href="#" id="menu-deploy-btn" class="flex items-center space-x-2 text-white hover:text-gray-300"><i class="fas fa-upload"></i><span>Deploy Website</span></a></li>
+                    <li><a href="#" id="menu-analytics-btn" class="flex items-center space-x-2 text-white hover:text-gray-300"><i class="fas fa-chart-bar"></i><span>Pengunjung</span></a></li>
+                    <li><a href="#" id="menu-projects-btn" class="flex items-center space-x-2 text-white hover:text-gray-300"><i class="fas fa-list-ul"></i><span>Daftar Website</span></a></li>
+                </ul>
+            </div>
+            
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Unggah & Deploy</h2>
+            <div id="deploy-section">
+                <div class="space-y-4">
+                    <input type="text" id="project-name" placeholder="Nama Proyek (contoh: Website-Pribadi)" class="w-full p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-custom-blue">
+                    <label for="zip-file-input" class="w-full h-40 flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition duration-300">
+                        <i class="fas fa-file-archive text-5xl text-gray-400"></i>
+                        <p class="mt-2 text-gray-600 text-center">Tarik & Lepas file .zip di sini, atau klik untuk memilih.</p>
+                        <input type="file" id="zip-file-input" accept=".zip" class="hidden">
+                    </label>
+                    <button id="upload-btn" class="w-full py-3 px-6 text-white rounded-lg bg-custom-blue hover:bg-opacity-90 transition duration-300 focus:outline-none">Unggah & Deploy</button>
+                </div>
+                <p id="status-message" class="mt-4 text-gray-600 text-sm"></p>
+            </div>
+
+            <div id="analytics-section" class="hidden">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Analitik Pengunjung</h3>
+                <div id="analytics-overview" class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                    <p class="text-sm text-gray-600">Total Pengunjung: <span id="total-visitors" class="font-bold text-custom-blue">0</span></p>
+                </div>
+                <div class="mt-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">Kunjungan Terbaru</h4>
+                    <ul id="visitor-list" class="bg-gray-50 p-4 rounded-lg shadow-sm space-y-2"></ul>
+                </div>
+            </div>
+
+            <div id="projects-section" class="hidden">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Proyek Anda</h3>
+                <ul id="project-list" class="space-y-4"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://fzkvouojzjqhhdxqaqzh.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3ZvdW9qempxaGhkeHFhcXpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczMTgwMDYsImV4cCI6MjA3Mjg5NDAwNn0.vKiKB7hsnuJi3s15pZBnUNw-Ag2qQ3Zr8hZv5NYZZeA';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const authContainer = document.getElementById('auth-container');
+        const dashboardContainer = document.getElementById('dashboard-container');
+        const logoutBtn = document.getElementById('logout-btn');
+        const loginBtn = document.getElementById('login-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const statusMessage = document.getElementById('status-message');
+        const projectNameInput = document.getElementById('project-name');
+        const fileInput = document.getElementById('zip-file-input');
+
+        const menuBtn = document.getElementById('menu-btn');
+        const sidebar = document.getElementById('sidebar');
+        const closeMenuBtn = document.getElementById('close-menu-btn');
+        const menuDeployBtn = document.getElementById('menu-deploy-btn');
+        const menuAnalyticsBtn = document.getElementById('menu-analytics-btn');
+        const menuProjectsBtn = document.getElementById('menu-projects-btn');
+
+        const deploySection = document.getElementById('deploy-section');
+        const analyticsSection = document.getElementById('analytics-section');
+        const projectsSection = document.getElementById('projects-section');
+        const projectList = document.getElementById('project-list');
+        const totalVisitorsSpan = document.getElementById('total-visitors');
+        const visitorListUl = document.getElementById('visitor-list');
+
+        let currentSection = 'deploy';
+
+        function showSection(section) {
+            deploySection.classList.add('hidden');
+            analyticsSection.classList.add('hidden');
+            projectsSection.classList.add('hidden');
+            
+            if (section === 'deploy') deploySection.classList.remove('hidden');
+            else if (section === 'analytics') analyticsSection.classList.remove('hidden');
+            else if (section === 'projects') projectsSection.classList.remove('hidden');
+            
+            currentSection = section;
+            sidebar.classList.add('-translate-x-full');
+        }
+
+        menuBtn.addEventListener('click', () => {
+            sidebar.classList.remove('-translate-x-full');
+        });
+        
+        closeMenuBtn.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+        });
+
+        menuDeployBtn.addEventListener('click', (e) => { e.preventDefault(); showSection('deploy'); });
+        menuAnalyticsBtn.addEventListener('click', (e) => { e.preventDefault(); showSection('analytics'); loadVisitors(); });
+        menuProjectsBtn.addEventListener('click', (e) => { e.preventDefault(); showSection('projects'); loadProjects(); });
+
+        async function checkUser() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                authContainer.classList.add('hidden');
+                dashboardContainer.classList.remove('hidden');
+                logoutBtn.classList.remove('hidden');
+                showSection('deploy');
+                loadProjects();
+                loadVisitors();
+            } else {
+                authContainer.classList.remove('hidden');
+                dashboardContainer.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+        }
+        
+        loginBtn.addEventListener('click', async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                statusMessage.textContent = `Login gagal: ${error.message}`;
+            } else {
+                checkUser();
+            }
+        });
+
+        logoutBtn.addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            checkUser();
+        });
+
+        uploadBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            const projectName = projectNameInput.value;
+            if (!file || !projectName) {
+                statusMessage.textContent = 'Nama proyek dan file ZIP harus diisi!';
+                return;
+            }
+            statusMessage.textContent = 'Mengunggah file...';
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                statusMessage.textContent = 'Autentikasi gagal.';
+                return;
+            }
+            const formData = new FormData();
+            formData.append('zipFile', file);
+            formData.append('projectName', projectName);
+            
+            const response = await fetch('/api/deploy', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                statusMessage.textContent = `Deployment berhasil! URL: ${result.url}`;
+                loadProjects();
+            } else {
+                statusMessage.textContent = `Deployment gagal: ${result.message}`;
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                statusMessage.textContent = `File "${fileInput.files[0].name}" dipilih.`;
+            }
+        });
+
+        async function loadProjects() {
+            projectList.innerHTML = '';
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data: projects, error } = await supabase
+                .from('projects')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+            if (error) {
+                statusMessage.textContent = `Gagal memuat proyek: ${error.message}`;
+                return;
+            }
+            if (projects.length === 0) {
+                projectList.innerHTML = `<li class="text-center text-gray-500">Belum ada proyek.</li>`;
+            }
+            projects.forEach(project => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-lg shadow-sm';
+                li.innerHTML = `
+                    <div>
+                        <a href="${project.deployment_url}" target="_blank" class="text-blue-600 hover:underline font-medium">${project.name}</a>
+                        <p class="text-sm text-gray-500">URL Aktif: <span class="text-gray-900">${project.deployment_url}</span></p>
+                    </div>
+                    <button class="delete-btn text-red-500 hover:text-red-700 transition" data-id="${project.id}" data-name="${project.name}">
+                        <i class="fas fa-trash-alt"></i> Hapus
+                    </button>
+                `;
+                projectList.appendChild(li);
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const projectId = e.currentTarget.getAttribute('data-id');
+                    const projectName = e.currentTarget.getAttribute('data-name');
+                    if (confirm(`Yakin ingin menghapus proyek '${projectName}'?`)) {
+                        await supabase.from('projects').delete().eq('id', projectId);
+                        loadProjects();
+                    }
+                });
+            });
+        }
+
+        async function loadVisitors() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data: visitors, error } = await supabase
+                .from('visitors')
+                .select('*')
+                .order('timestamp', { ascending: false })
+                .limit(10);
+            if (error) {
+                console.error('Gagal memuat pengunjung:', error.message);
+                return;
+            }
+            totalVisitorsSpan.textContent = visitors.length;
+            visitorListUl.innerHTML = '';
+            visitors.forEach(visitor => {
+                const li = document.createElement('li');
+                li.className = 'p-2 border-b last:border-b-0 text-sm';
+                const time = new Date(visitor.timestamp).toLocaleString();
+                li.innerHTML = `
+                    <p class="font-medium">Proyek: ${visitor.project_name || 'N/A'}</p>
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-globe mr-1"></i> ${visitor.country || 'N/A'} - 
+                        <i class="fas fa-clock mr-1"></i> ${time}
+                    </p>
+                `;
+                visitorListUl.appendChild(li);
+            });
+        }
+        
+        checkUser();
+    </script>
+</body>
+</html>
